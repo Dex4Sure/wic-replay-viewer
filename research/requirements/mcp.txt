@@ -1,0 +1,6 @@
+# pyghidra-mcp 0.2.3 imports mcp.server.fastmcp, which was removed in MCP 2.x.
+pyghidra-mcp==0.2.3
+mcp[cli]==1.26.0
+anyio==4.9.0
+pydantic==2.12.5
+pydantic-settings==2.12.0

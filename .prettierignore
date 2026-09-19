@@ -1,0 +1,30 @@
+node_modules/
+dist/
+target/
+artifacts/
+.flatpak-build/
+.flatpak-builder/
+.flatpak-repo/
+src-tauri/gen/
+src-tauri/icons/
+public/
+parser/rust_parser/pkg/
+third-party/upstream-licenses/
+package-lock.json
+Cargo.lock
+docs/migrations/*.tsv
+AGENTS.md
+CLAUDE.md
+
+local/
+research/HISTORY.md
+research/notes/
+research/findings/
+
+research/scripts/playback-proof/
+
+# Local editor configuration is not product source.
+.air/
+
+# User-exported diagnostic evidence is not product source.
+/src-tauri/errors/

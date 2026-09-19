@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "contract": "researchReplayState",
+  "source": {
+    "mapName": "synthetic/proof",
+    "replaySha256": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "timing": { "recordingSeconds": 10 },
+  "map": {
+    "bounds": { "minX": 0, "minZ": 0, "maxX": 100, "maxZ": 100 },
+    "overviewPngDataUrl": null,
+    "objectives": [
+      { "type": "commandPoint", "id": 1, "team": 0, "position": [50, 0, 50] }
+    ]
+  },
+  "units": [
+    {
+      "unitId": 7,
+      "createdSeconds": 0,
+      "spawnPosition": [20, 0, 20],
+      "team": 1,
+      "initialHealth": 100,
+      "changes": [],
+      "health": [{ "timeSeconds": 8, "value": 0 }],
+      "terminal": { "timeSeconds": 9, "type": "destroyed" },
+      "frames": [
+        { "encoding": "compact", "timeBits": 0, "raw": [7, 840, 21, 840, 20001, 20001, 20001, 25001] },
+        { "encoding": "compact", "timeBits": 1084227584, "raw": [7, 2520, 21, 2520, 20001, 20001, 20001, 25001] }
+      ]
+    }
+  ],
+  "events": [
+    { "type": "commandPointOwnerChanged", "id": 1, "team": 1, "timeSeconds": 3 },
+    { "type": "tacticalAidDeployed", "position": [70, 0, 70], "timeSeconds": 6 }
+  ],
+  "coverage": { "counts": { "unitFrame": 2 } }
+}

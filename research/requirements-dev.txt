@@ -1,0 +1,2 @@
+-r ../parser/requirements-dev.txt
+pefile==2024.8.26

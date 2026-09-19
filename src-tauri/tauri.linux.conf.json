@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "active": true,
+    "targets": ["appimage"],
+    "category": "Game"
+  }
+}

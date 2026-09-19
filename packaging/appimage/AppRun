@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Match the viewer's dark interface. The upstream GTK hook guesses from the
+# legacy theme name, which stays Adwaita even when GNOME prefers dark mode.
+# Preserve an explicit app-specific or GTK override.
+export APPIMAGE_GTK_THEME="${APPIMAGE_GTK_THEME:-${GTK_THEME:-Adwaita:dark}}"
+app_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+exec "$app_dir/AppRun.tauri" "$@"

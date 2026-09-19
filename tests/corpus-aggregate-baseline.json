@@ -1,0 +1,16 @@
+{
+  "accepted": 2865,
+  "contentSha256": "b9ba5869d6a6e05b22330c228d779b2d83a3d6ef3b5e67a4eb74b0a92826a963",
+  "numericTotals": {
+    "spectatorViewChanges": 5780,
+    "tacticalAidDeployments": 223319,
+    "tacticalAidMarkers": 198495,
+    "tacticalAidUses": 42282,
+    "unitDestructions": 710951
+  },
+  "rejected": 15,
+  "schemaVersions": {
+    "18": 2865
+  },
+  "totalFiles": 2880
+}

@@ -1,0 +1,28 @@
+# Replay files
+*.wicdemo
+
+# Game binaries
+*.exe
+*.dll
+
+# Archive (old investigation scripts/reports)
+archive/
+
+# One-off investigation scripts
+investigate_*.py
+
+# Community reference script
+stats.py
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Rust/WASM build artifacts
+rust_parser/pkg/
+rust_parser/test_wasm.mjs
+state/
+
+# GUI (separate project)
+wic_replay_gui/

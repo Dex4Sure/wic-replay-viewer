@@ -1,0 +1,4 @@
+[mcp_servers.ghidra-wic]
+command = "./research/scripts/ghidra-mcp.sh"
+startup_timeout_sec = 30
+tool_timeout_sec = 120

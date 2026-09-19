@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(git rev-parse --show-toplevel)
+if git diff --cached --name-only -- AGENTS.md | grep -q .; then
+    "$repo_root/scripts/sync-agent-instructions.sh"
+    git add -- CLAUDE.md
+fi
+exec "$repo_root/scripts/quality.sh" fast

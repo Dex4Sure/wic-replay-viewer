@@ -1,0 +1,55 @@
+[package]
+name = "wic-replay-viewer-app"
+version = "0.6.2"
+edition = "2024"
+description = "Desktop viewer for World in Conflict replay files"
+authors = ["Dex4Sure"]
+license = "MIT"
+publish = false
+
+[lib]
+name = "wic_replay_viewer_app"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "wic-replay-viewer"
+path = "src/main.rs"
+
+[features]
+# The Tauri CLI enables this for production builds. Without it `generate_context!`
+# emits a development context with no embedded frontend, so a plain
+# `cargo build --release` produces a binary that
+# loads `devUrl` and renders a blank window.
+custom-protocol = ["tauri/custom-protocol"]
+
+[build-dependencies]
+sha2 = "=0.10.9"
+serde_json = "=1.0.151"
+tauri-build = { version = "=2.6.3", features = [] }
+
+[dependencies]
+directories = "=6.0.0"
+serde_json = "=1.0.151"
+serde = { version = "=1.0.229", features = ["derive"] }
+tauri = { version = "=2.11.5", features = [] }
+tauri-plugin-dialog = "=2.7.3"
+wic-replay-viewer = { path = ".." }
+
+[dev-dependencies]
+tempfile = "=3.27.0"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "=0.18.2"
+webkit2gtk = { version = "=2.0.2", features = ["v2_34"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "=0.60.2", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse"] }
+webview2-com = "=0.38.2"
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+rfd = { version = "=0.16.0", default-features = false, features = ["common-controls-v6"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "=0.6.4"
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSAlert", "NSScrollView", "NSTextView", "NSText", "NSView", "NSControl", "NSWindow", "NSResponder", "NSApplication", "NSButton"] }
+objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSString", "NSGeometry"] }

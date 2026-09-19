@@ -1,0 +1,31 @@
+[package]
+name = "wic_replay_parser"
+version = "6.0.0"
+edition = "2024"
+description = "World in Conflict replay parser — extracts match results from .wicdemo files"
+authors = ["Dex4Sure"]
+license = "MIT"
+publish = false
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "wic_replay_parser"
+path = "src/main.rs"
+required-features = ["cli"]
+
+[features]
+default = ["cli", "wasm"]
+cli = ["glob", "serde", "serde_json"]
+wasm = ["wasm-bindgen", "serde", "serde_json"]
+
+[dependencies]
+flate2 = "1"
+glob = { version = "0.3", optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+serde_json = { version = "1", optional = true }
+wasm-bindgen = { version = "0.2", optional = true }

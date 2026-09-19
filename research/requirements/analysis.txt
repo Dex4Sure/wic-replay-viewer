@@ -1,0 +1,7 @@
+pefile==2024.8.26
+lief==1.0.0
+capstone==5.0.9
+unicorn==2.1.4
+construct==2.10.70
+frida-tools==14.10.4
+ruff==0.16.3

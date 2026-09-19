@@ -1,0 +1,24 @@
+{
+  "fixtures": {
+    "WIC_REPLAY_VIEWER_RECORDER_LOBBY_REVIEW": "replays/main/demo08.wicdemo",
+    "WIC_REPLAY_VIEWER_SMOKE": "replays/main/old/4v4 MM Quarry 2010 #1 Dexter pr0 Support.wicdemo",
+    "WIC_PLAYBACK_REPLAY": "replays/main/old/4v4 MM Quarry 2010 #1 Dexter pr0 Support.wicdemo",
+    "WIC_REPLAY_VIEWER_TA_REVIEW": "replays/main/4600.wicdemo",
+    "WIC_REPLAY_VIEWER_IDENTITY_REUSE": "replays/main/WicTracker/downloads/744__demo08.wicdemo",
+    "WIC_REPLAY_VIEWER_ROSTER_REUSE": "replays/main/old/4v4 MM Seaside 2010 #8 Inc.G vs LK All Playing Their Weakest Roles Win (Dexter).wicdemo",
+    "WIC_REPLAY_VIEWER_SPECTATOR_REVIEW": "replays/main/WicTracker/downloads/70__demo13.wicdemo",
+    "WIC_REPLAY_VIEWER_ALL_TEAM_SPECTATOR_REVIEW": "replays/main/old/4v4 MM Riviera 2010 #3 Armor Rape.wicdemo",
+    "WIC_REPLAY_VIEWER_TRUE_SPECTATOR_REVIEW": "replays/main/old/5v5 MM Seaside 2010 #3 From Spec View.wicdemo",
+    "WIC_REPLAY_VIEWER_MIXED_SPECTATOR_REVIEW": "replays/main/old/1v1 Ben Dover vs Jaroslav Seaside spec view.wicdemo",
+    "WIC_REPLAY_VIEWER_ZERO_SCORE_SPECTATORS": "replays/main/old/demo263.wicdemo",
+    "WIC_REPLAY_VIEWER_LOBBY_ROLE_SPECTATOR": "replays/main/WicTracker/downloads/730__demo95.wicdemo",
+    "WIC_REPLAY_VIEWER_ABANDONED_DUPLICATE": "replays/main/old/NoW vs Shiny 3.wicdemo",
+    "WIC_REPLAY_VIEWER_RESULT_DEMO69": "replays/settings/demo69.wicdemo",
+    "WIC_REPLAY_VIEWER_RESULT_DEMO66": "replays/settings/demo66.wicdemo",
+    "WIC_REPLAY_VIEWER_RESULT_DEMO33": "replays/settings/demo33.wicdemo",
+    "WIC_REPLAY_VIEWER_RESULT_DEMO34": "replays/settings/demo34.wicdemo",
+    "WIC_REPLAY_VIEWER_RESULT_DEMO30": "replays/settings/demo30.wicdemo",
+    "WIC_REPLAY_VIEWER_RESULT_333": "replays/main/WicTracker/downloads/333__demo17.wicdemo",
+    "WIC_REPLAY_VIEWER_RESULT_358": "replays/main/WicTracker/downloads/358__demo85.wicdemo"
+  }
+}

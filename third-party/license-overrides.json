@@ -1,0 +1,299 @@
+{
+  "documentSets": {
+    "alloc-stdlib": [
+      {
+        "path": "upstream-licenses/rust-alloc-no-stdlib-LICENSE",
+        "sha256": "c0c56f26d9c051cac4d200c34c84e7ae9aaa853e01a982a1df08b09931e518ae",
+        "source": "https://github.com/dropbox/rust-alloc-no-stdlib/blob/ae42d22078b98549e987d2f03d12df7b984fde47/LICENSE"
+      }
+    ],
+    "defmt": [
+      {
+        "path": "upstream-licenses/defmt-LICENSE-MIT",
+        "sha256": "0d17b75c1867fd568bcbb735f329d0d4253846c4b756a65e4d440c1e4bd59187",
+        "source": "https://github.com/knurling-rs/defmt/blob/4a8cdb44891ed57b8ff5a023b6bec7137c48708f/LICENSE-MIT"
+      }
+    ],
+    "dlopen2": [
+      {
+        "path": "upstream-licenses/dlopen2-LICENSE",
+        "sha256": "39fa265207450e77c62e90c5594a06c085b655d8374c7ced4bf7894b6bd95dd2",
+        "source": "https://github.com/OpenByteDev/dlopen2/blob/cc80e4a0a90d499b677fdf7743699b4b3a43a989/LICENSE"
+      }
+    ],
+    "jni-sys": [
+      {
+        "path": "upstream-licenses/jni-sys-LICENSE-MIT",
+        "sha256": "1d85bd754b04ceec93e98e890edd1fa3c6a22e81bcb32135806beeccefa51cd1",
+        "source": "https://github.com/jni-rs/jni-sys/blob/64d77b7a5f119d7b55b4e2c169a4668067ff59e6/LICENSE-MIT"
+      }
+    ],
+    "libappindicator": [
+      {
+        "path": "upstream-licenses/libappindicator-rs-LICENSE-MIT",
+        "sha256": "eb227437252b2a7a9c1fc342c93ade1f3d7ce38cc6dd754f613db07d53ceff0b",
+        "source": "https://github.com/tauri-apps/libappindicator-rs/blob/eafd1e3682a1247f595410266091e9684021cb6f/LICENSE-MIT"
+      }
+    ],
+    "ndk": [
+      {
+        "path": "upstream-licenses/ndk-LICENSE-MIT",
+        "sha256": "508a77d2e7b51d98adeed32648ad124b7b30241a8e70b2e72c99f92d8e5874d1",
+        "source": "https://github.com/rust-mobile/ndk/blob/49bbbba16c58ff63cb8a0ad0eca5a9fb7ecaec25/LICENSE-MIT"
+      }
+    ],
+    "objc2-b4167b": [
+      {
+        "path": "upstream-licenses/objc2-LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "source": "https://github.com/madsmtm/objc2/blob/b4167b582b2f75f9a1be75495c41b765344fd03c/LICENSE.md"
+      }
+    ],
+    "objc2-8852b4": [
+      {
+        "path": "upstream-licenses/objc2-LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "source": "https://github.com/madsmtm/objc2/blob/8852b424193ca41602281b3d7540d7c8ed51e49a/LICENSE.md"
+      }
+    ],
+    "objc2-7b1abf": [
+      {
+        "path": "upstream-licenses/objc2-LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "source": "https://github.com/madsmtm/objc2/blob/7b1abfd750a2cacaea71d6a56ecfb83cb7de560b/LICENSE.md"
+      }
+    ],
+    "objc2-8d214f": [
+      {
+        "path": "upstream-licenses/objc2-LICENSE.md",
+        "sha256": "7f976f7e9cb2d87df7230606feb932c3f21ac0e664045a775b600046ff850c54",
+        "source": "https://github.com/madsmtm/objc2/blob/8d214f5477365ffcbcbb7de058c86ed9a518efb7/LICENSE.md"
+      }
+    ],
+    "rsqlite-vfs": [
+      {
+        "path": "upstream-licenses/sqlite-wasm-rs-LICENSE",
+        "sha256": "e1c1975c3474cce31722836f101a40ffaf1cc784e4d2f38ce3e77b9712934e78",
+        "source": "https://github.com/Spxg/sqlite-wasm-rs/blob/1bb309784f25c401ddf95131dcde4c4cdad7aee7/LICENSE"
+      }
+    ],
+    "selectors": [
+      {
+        "path": "upstream-licenses/selectors-MPL-2.0",
+        "sha256": "766674381e88a468d55e07de3596987391cf0e8beebe51baf4fddf11078785b3",
+        "source": "https://github.com/servo/stylo/blob/635e1a19d02960588a00e189bd4bd5bdb150ec3d/selectors/lib.rs"
+      }
+    ],
+    "tauri": [
+      {
+        "path": "upstream-licenses/tauri-LICENSE_MIT",
+        "sha256": "9dd42ea92cff2ede5cd477cbfcce051b2d0115c0ac7f368ee88cb545055dff1d",
+        "source": "https://github.com/tauri-apps/tauri/blob/6f6ab1207bb3923c2721fbc67d2fdb1c8deb0c7a/LICENSE_MIT"
+      }
+    ],
+    "rust-unic": [
+      {
+        "path": "upstream-licenses/rust-unic-COPYRIGHT.md",
+        "sha256": "f5c342c49f3ac804f3e8e7bb62a8040a44c50d47bb36902b1abd13f66a1adf8b",
+        "source": "https://github.com/open-i18n/rust-unic/blob/5878605364af97a3358368a6eaef02104af2e016/COPYRIGHT.md"
+      },
+      {
+        "path": "upstream-licenses/rust-unic-LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "source": "https://github.com/open-i18n/rust-unic/blob/5878605364af97a3358368a6eaef02104af2e016/LICENSE-MIT"
+      }
+    ],
+    "rust-unic-8a6ce8": [
+      {
+        "path": "upstream-licenses/rust-unic-COPYRIGHT.md",
+        "sha256": "f5c342c49f3ac804f3e8e7bb62a8040a44c50d47bb36902b1abd13f66a1adf8b",
+        "source": "https://github.com/open-i18n/rust-unic/blob/8a6ce83063d90b91ae2ce59eddb803edd393fca9/COPYRIGHT.md"
+      },
+      {
+        "path": "upstream-licenses/rust-unic-LICENSE-MIT",
+        "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+        "source": "https://github.com/open-i18n/rust-unic/blob/8a6ce83063d90b91ae2ce59eddb803edd393fca9/LICENSE-MIT"
+      }
+    ],
+    "webview2-b74dc5": [
+      {
+        "path": "upstream-licenses/webview2-rs-LICENSE",
+        "sha256": "0dcf41516e608bbcb6cdc5229feb7b86fe4a643b85e7df251133c93408fdac73",
+        "source": "https://github.com/wravery/webview2-rs/blob/b74dc5e2b394044bea5191052868ce7a106c202c/LICENSE"
+      }
+    ],
+    "webview2-dffa41": [
+      {
+        "path": "upstream-licenses/webview2-rs-LICENSE",
+        "sha256": "0dcf41516e608bbcb6cdc5229feb7b86fe4a643b85e7df251133c93408fdac73",
+        "source": "https://github.com/wravery/webview2-rs/blob/dffa41a8a46d3f5565eefbff2de57d38d399f158/LICENSE"
+      }
+    ],
+    "winapi": [
+      {
+        "path": "upstream-licenses/winapi-rs-LICENSE-MIT",
+        "sha256": "ce7bc3499fee93d5022ef430d5e4201e79a6d9154f3974e42f41349f0569e09b",
+        "source": "https://github.com/retep998/winapi-rs/blob/796a8e6c2971dc2ff1bcff166e6671284f9b5b6b/LICENSE-MIT"
+      }
+    ]
+  },
+  "components": {
+    "Rust:alloc-stdlib@0.2.4": [
+      "0e76a019e91224d279006ff972f1e984179a6e9feb050adba6ce8274aef23195",
+      "alloc-stdlib"
+    ],
+    "Rust:block2@0.6.2": [
+      "cdeb9d870516001442e364c5220d3574d2da8dc765554b4a617230d33fa58ef5",
+      "objc2-b4167b"
+    ],
+    "Rust:defmt-parser@1.0.0": [
+      "10d60334b3b2e7c9d91ef8150abfb6fa4c1c39ebbcf4a81c2e346aad939fee3e",
+      "defmt"
+    ],
+    "Rust:dispatch2@0.3.1": [
+      "1e0e367e4e7da84520dedcac1901e4da967309406d1e51017ae1abfb97adbd38",
+      "objc2-8852b4"
+    ],
+    "Rust:dlopen2@0.8.2": [
+      "5e2c5bd4158e66d1e215c49b837e11d62f3267b30c92f1d171c4d3105e3dc4d4",
+      "dlopen2"
+    ],
+    "Rust:dlopen2_derive@0.4.3": [
+      "0fbbb781877580993a8707ec48672673ec7b81eeba04cfd2310bd28c08e47c8f",
+      "dlopen2"
+    ],
+    "Rust:jni-sys-macros@0.4.1": [
+      "38c0b942f458fe50cdac086d2f946512305e5631e720728f2a61aabcd47a6264",
+      "jni-sys"
+    ],
+    "Rust:libappindicator-sys@0.9.0": [
+      "6e9ec52138abedcc58dc17a7c6c0c00a2bdb4f3427c7f63fa97fd0d859155caf",
+      "libappindicator"
+    ],
+    "Rust:ndk-sys@0.6.0+11769913": [
+      "ee6cda3051665f1fb8d9e08fc35c96d5a244fb1be711a03b71118828afc9a873",
+      "ndk"
+    ],
+    "Rust:ndk@0.9.0": ["c3f42e7bbe13d351b6bead8286a43aac9534b82bd3cc43e47037f012ebfd62d4", "ndk"],
+    "Rust:objc2-app-kit@0.3.2": [
+      "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-cloud-kit@0.3.2": [
+      "73ad74d880bb43877038da939b7427bba67e9dd42004a18b809ba7d87cee241c",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-core-data@0.3.2": [
+      "0b402a653efbb5e82ce4df10683b6b28027616a2715e90009947d50b8dd298fa",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-core-foundation@0.3.2": [
+      "2a180dd8642fa45cdb7dd721cd4c11b1cadd4929ce112ebd8b9f5803cc79d536",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-core-graphics@0.3.2": [
+      "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-core-image@0.3.2": [
+      "e5d563b38d2b97209f8e861173de434bd0214cf020e3423a52624cd1d989f006",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-core-location@0.3.2": [
+      "ca347214e24bc973fc025fd0d36ebb179ff30536ed1f80252706db19ee452009",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-core-text@0.3.2": [
+      "0cde0dfb48d25d2b4862161a4d5fcc0e3c24367869ad306b0c9ec0073bfed92d",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-encode@4.1.0": [
+      "ef25abbcd74fb2609453eb695bd2f860d389e457f67dc17cafc8b8cbc89d0c33",
+      "objc2-8d214f"
+    ],
+    "Rust:objc2-exception-helper@0.1.1": [
+      "c7a1c5fbb72d7735b076bb47b578523aedc40f3c439bea6dfd595c089d79d98a",
+      "objc2-8d214f"
+    ],
+    "Rust:objc2-foundation@0.3.2": [
+      "e3e0adef53c21f888deb4fa59fc59f7eb17404926ee8a6f59f5df0fd7f9f3272",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-io-surface@0.3.2": [
+      "180788110936d59bab6bd83b6060ffdfffb3b922ba1396b312ae795e1de9d81d",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-quartz-core@0.3.2": [
+      "96c1358452b371bf9f104e21ec536d37a650eb10f7ee379fff67d2e08d537f1f",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-ui-kit@0.3.2": [
+      "d87d638e33c06f577498cbcc50491496a3ed4246998a7fbba7ccb98b1e7eab22",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-user-notifications@0.3.2": [
+      "9df9128cbbfef73cda168416ccf7f837b62737d748333bfe9ab71c245d76613e",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2-web-kit@0.3.2": [
+      "b2e5aaab980c433cf470df9d7af96a7b46a9d892d521a2cbbb2f8a4c16751e7f",
+      "objc2-7b1abf"
+    ],
+    "Rust:objc2@0.6.4": [
+      "3a12a8ed07aefc768292f076dc3ac8c48f3781c8f2d5851dd3d98950e8c5a89f",
+      "objc2-8852b4"
+    ],
+    "Rust:rsqlite-vfs@0.1.1": [
+      "c51c9ae4df8a7fba42103df5c621fa3c37eccf3a3c650879e90fc48b11cc192c",
+      "rsqlite-vfs"
+    ],
+    "Rust:selectors@0.36.1": [
+      "c5d9c0c92a92d33f08817311cf3f2c29a3538a8240e94a6a3c622ce652d7e00c",
+      "selectors"
+    ],
+    "Rust:tauri-plugin@2.6.3": [
+      "74be5dd4bed9afbd145e5716b5fa2ec28cbc29c34ffa61c258c9273d896c8020",
+      "tauri"
+    ],
+    "Rust:unic-char-property@0.9.0": [
+      "a8c57a407d9b6fa02b4795eb81c5b6652060a15a7903ea981f3d723e6c0be221",
+      "rust-unic"
+    ],
+    "Rust:unic-char-range@0.9.0": [
+      "0398022d5f700414f6b899e10b8348231abf9173fa93144cbc1a43b9793c1fbc",
+      "rust-unic"
+    ],
+    "Rust:unic-common@0.9.0": [
+      "80d7ff825a6a654ee85a63e80f92f054f904f21e7d12da4e22f9834a4aaa35bc",
+      "rust-unic"
+    ],
+    "Rust:unic-ucd-ident@0.9.0": [
+      "e230a37c0381caa9219d67cf063aa3a375ffed5bf541a452db16e744bdab6987",
+      "rust-unic-8a6ce8"
+    ],
+    "Rust:unic-ucd-version@0.9.0": [
+      "96bd2f2237fe450fcd0a1d2f5f4e91711124f7857ba2e964247776ebeeb7b0c4",
+      "rust-unic"
+    ],
+    "Rust:webview2-com-macros@0.8.1": [
+      "67a921c1b6914c367b2b823cd4cde6f96beec77d30a939c8199bb377cf9b9b54",
+      "webview2-dffa41"
+    ],
+    "Rust:webview2-com-sys@0.38.2": [
+      "381336cfffd772377d291702245447a5251a2ffa5bad679c99e61bc48bacbf9c",
+      "webview2-b74dc5"
+    ],
+    "Rust:webview2-com@0.38.2": [
+      "7130243a7a5b33c54a444e54842e6a9e133de08b5ad7b5861cd8ed9a6a5bc96a",
+      "webview2-b74dc5"
+    ],
+    "Rust:winapi-i686-pc-windows-gnu@0.4.0": [
+      "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6",
+      "winapi"
+    ],
+    "Rust:winapi-x86_64-pc-windows-gnu@0.4.0": [
+      "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f",
+      "winapi"
+    ]
+  }
+}

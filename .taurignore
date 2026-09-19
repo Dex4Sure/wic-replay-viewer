@@ -1,0 +1,10 @@
+/target/
+/node_modules/
+/dist/
+/.flatpak-build/
+/.flatpak-builder/
+/.flatpak-repo/
+/artifacts/
+
+/local/
+/research/

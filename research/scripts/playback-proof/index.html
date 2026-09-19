@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WiC replay-state proof viewer</title>
+  <style>
+    :root { color-scheme: dark; font: 14px/1.4 system-ui, sans-serif; background: #090d12; color: #d9e3ec; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
+    header, footer { padding: 12px 16px; background: #111923; border-color: #263545; }
+    header { display: flex; gap: 14px; align-items: center; border-bottom: 1px solid #263545; }
+    header strong { font-size: 16px; }
+    header small { color: #91a4b7; }
+    main { min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 290px; }
+    .stage { min-height: 360px; position: relative; overflow: hidden; background: #080b0f; }
+    canvas { width: 100%; height: 100%; display: block; }
+    .empty { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; color: #91a4b7; }
+    aside { padding: 16px; overflow: auto; background: #0d141d; border-left: 1px solid #263545; }
+    aside h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; }
+    dl { display: grid; grid-template-columns: auto 1fr; gap: 7px 12px; margin: 0; }
+    dt { color: #91a4b7; } dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+    .legend { display: grid; gap: 7px; margin-top: 18px; }
+    .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 50%; background: var(--tone); }
+    footer { display: grid; grid-template-columns: auto minmax(100px, 1fr) auto auto; gap: 12px; align-items: center; border-top: 1px solid #263545; }
+    button, select, input::file-selector-button { color: inherit; background: #1b2836; border: 1px solid #34495e; border-radius: 5px; padding: 6px 10px; }
+    button:hover, input::file-selector-button:hover { background: #25384b; }
+    input[type="range"] { width: 100%; }
+    .time { min-width: 112px; font-variant-numeric: tabular-nums; text-align: right; }
+    .warning { color: #e8b15e; }
+    @media (max-width: 800px) { main { grid-template-columns: 1fr; } aside { display: none; } footer { grid-template-columns: auto 1fr auto; } footer select { display: none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Replay-state proof viewer</strong>
+    <input id="file" type="file" accept="application/json,.json">
+    <small>Research schema v1 · checkpoint/hold-last rendering only</small>
+  </header>
+  <main>
+    <section class="stage">
+      <canvas id="map"></canvas>
+      <div class="empty" id="empty">
+        <strong>Load an ignored replay-state JSON export</strong>
+        <span>No replay or game asset data is embedded in this viewer.</span>
+      </div>
+    </section>
+    <aside>
+      <h2>Evidence state</h2>
+      <dl id="facts"><dt>Status</dt><dd>Awaiting export</dd></dl>
+      <div class="legend">
+        <span style="--tone:#4fa3ff">USA</span>
+        <span style="--tone:#80c4ff">NATO</span>
+        <span style="--tone:#ef665e">USSR</span>
+        <span style="--tone:#a8b2bc">Neutral / unresolved</span>
+      </div>
+      <p class="warning" id="extent-note"></p>
+    </aside>
+  </main>
+  <footer>
+    <button id="play" type="button" disabled>Play</button>
+    <input id="time" type="range" min="0" max="1" step="0.01" value="0" disabled>
+    <select id="speed" aria-label="Playback speed">
+      <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+      <option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option>
+    </select>
+    <span class="time" id="time-label">00:00.00 / 00:00.00</span>
+  </footer>
+  <script>
+    const fileInput = document.querySelector('#file');
+    const canvas = document.querySelector('#map');
+    const context = canvas.getContext('2d');
+    const empty = document.querySelector('#empty');
+    const facts = document.querySelector('#facts');
+    const extentNote = document.querySelector('#extent-note');
+    const playButton = document.querySelector('#play');
+    const timeInput = document.querySelector('#time');
+    const timeLabel = document.querySelector('#time-label');
+    const speedInput = document.querySelector('#speed');
+    const scratch = new DataView(new ArrayBuffer(4));
+    const tones = new Map([[1, '#4fa3ff'], [2, '#80c4ff'], [3, '#ef665e']]);
+    let replay = null;
+    let bounds = null;
+    let currentTime = 0;
+    let playing = false;
+    let lastAnimation = 0;
+
+    function bitsFloat(bits) { scratch.setUint32(0, bits, true); return scratch.getFloat32(0, true); }
+    function compactPosition(raw) { return Math.fround(Math.fround(raw - 0.5) * Math.fround(0.023809524)); }
+    function compactValue(raw) { return Math.fround(Math.fround(raw - 20000.5) * Math.fround(0.0002)); }
+    function frameState(frame) {
+      if (frame.encoding === 'compact') {
+        return {
+          time: bitsFloat(frame.timeBits),
+          position: frame.raw.slice(1, 4).map(compactPosition),
+          orientation: frame.raw.slice(4, 8).map(compactValue),
+        };
+      }
+      return {
+        time: bitsFloat(frame.timeBits),
+        position: frame.raw.parentBits.slice(0, 3).map(bitsFloat),
+        orientation: frame.raw.parentBits.slice(3, 7).map(bitsFloat),
+      };
+    }
+    function latestAt(rows, time, getTime) {
+      let low = 0, high = rows.length - 1, result = null;
+      while (low <= high) {
+        const middle = (low + high) >> 1;
+        if (getTime(rows[middle]) <= time) { result = rows[middle]; low = middle + 1; }
+        else high = middle - 1;
+      }
+      return result;
+    }
+    function formatTime(seconds) {
+      const minutes = Math.floor(seconds / 60);
+      const remainder = seconds - minutes * 60;
+      return `${String(minutes).padStart(2, '0')}:${remainder.toFixed(2).padStart(5, '0')}`;
+    }
+    function observedBounds(document) {
+      let minX = Infinity, minZ = Infinity, maxX = -Infinity, maxZ = -Infinity;
+      const add = position => {
+        if (position?.length === 3 && position.every(Number.isFinite)) {
+          minX = Math.min(minX, position[0]); maxX = Math.max(maxX, position[0]);
+          minZ = Math.min(minZ, position[2]); maxZ = Math.max(maxZ, position[2]);
+        }
+      };
+      document.units.forEach(unit => { add(unit.spawnPosition); unit.frames.forEach(frame => add(frameState(frame).position)); });
+      document.map.objectives.forEach(row => add(row.position));
+      document.events.forEach(row => add(row.position));
+      if (!Number.isFinite(minX)) return { minX: 0, minZ: 0, maxX: 1, maxZ: 1 };
+      const margin = Math.max(maxX - minX, maxZ - minZ) * 0.03 || 1;
+      return { minX: minX - margin, minZ: minZ - margin, maxX: maxX + margin, maxZ: maxZ + margin };
+    }
+    function project(position) {
+      return {
+        x: (bounds.maxX - position[0]) / (bounds.maxX - bounds.minX) * canvas.width,
+        y: (position[2] - bounds.minZ) / (bounds.maxZ - bounds.minZ) * canvas.height,
+      };
+    }
+    function teamAt(unit, time) {
+      const row = latestAt(unit.changes.filter(change => change.type === 'teamChanged'), time, change => change.timeSeconds);
+      return row?.value ?? unit.team;
+    }
+    function healthAt(unit, time) {
+      return latestAt(unit.health, time, row => row.timeSeconds)?.value ?? unit.initialHealth;
+    }
+    function objectiveTeam(id, initial, time, kind) {
+      const row = latestAt(replay.events.filter(event => event.type === kind && event.id === id), time, event => event.timeSeconds);
+      return row?.team ?? initial;
+    }
+    function resize() {
+      const ratio = window.devicePixelRatio || 1;
+      const box = canvas.getBoundingClientRect();
+      canvas.width = Math.max(1, Math.round(box.width * ratio));
+      canvas.height = Math.max(1, Math.round(box.height * ratio));
+      draw();
+    }
+    function drawGrid() {
+      context.fillStyle = '#080b0f'; context.fillRect(0, 0, canvas.width, canvas.height);
+      if (replay.map.overviewPngDataUrl && replay._image?.complete) {
+        context.globalAlpha = 0.62; context.drawImage(replay._image, 0, 0, canvas.width, canvas.height); context.globalAlpha = 1;
+      }
+      context.strokeStyle = '#17222e'; context.lineWidth = 1;
+      for (let index = 1; index < 10; index++) {
+        const x = canvas.width * index / 10, y = canvas.height * index / 10;
+        context.beginPath(); context.moveTo(x, 0); context.lineTo(x, canvas.height); context.stroke();
+        context.beginPath(); context.moveTo(0, y); context.lineTo(canvas.width, y); context.stroke();
+      }
+    }
+    function drawObjectives() {
+      for (const point of replay.map.objectives) {
+        if (!point.position || point.type !== 'commandPoint') continue;
+        const team = objectiveTeam(point.id, point.team, currentTime, 'commandPointOwnerChanged');
+        const projected = project(point.position);
+        context.fillStyle = tones.get(team) ?? '#a8b2bc';
+        context.strokeStyle = '#f3f6f8'; context.lineWidth = 2;
+        context.beginPath(); context.rect(projected.x - 8, projected.y - 8, 16, 16); context.fill(); context.stroke();
+      }
+    }
+    function drawEffects() {
+      for (const event of replay._positionedEvents) {
+        const age = currentTime - event.timeSeconds;
+        if (age < 0 || age > 1.5) continue;
+        const point = project(event.position);
+        const radius = 8 + age * 22;
+        context.strokeStyle = event.type.startsWith('tacticalAid') ? '#f2c14e' : '#ffffff';
+        context.globalAlpha = 1 - age / 1.5; context.lineWidth = 3;
+        context.beginPath(); context.arc(point.x, point.y, radius, 0, Math.PI * 2); context.stroke();
+        context.globalAlpha = 1;
+      }
+    }
+    function drawUnits() {
+      let active = 0, framed = 0;
+      for (const unit of replay.units) {
+        if (unit.createdSeconds > currentTime || (unit.terminal && unit.terminal.timeSeconds <= currentTime)) continue;
+        active++;
+        const frame = latestAt(unit.frames, currentTime, row => bitsFloat(row.timeBits));
+        const state = frame ? frameState(frame) : { position: unit.spawnPosition };
+        if (frame) framed++;
+        const point = project(state.position);
+        const team = teamAt(unit, currentTime);
+        context.fillStyle = tones.get(team) ?? '#a8b2bc';
+        context.strokeStyle = '#081018'; context.lineWidth = 1.5;
+        context.beginPath(); context.arc(point.x, point.y, 4.5, 0, Math.PI * 2); context.fill(); context.stroke();
+        const health = healthAt(unit, currentTime);
+        if (Number.isFinite(health) && health <= 0) {
+          context.strokeStyle = '#ffffff'; context.beginPath(); context.moveTo(point.x - 5, point.y - 5); context.lineTo(point.x + 5, point.y + 5); context.stroke();
+        }
+      }
+      replay._activeCount = active; replay._framedCount = framed;
+    }
+    function draw() {
+      if (!replay || !bounds) return;
+      drawGrid(); drawObjectives(); drawEffects(); drawUnits();
+      timeLabel.textContent = `${formatTime(currentTime)} / ${formatTime(replay.timing.recordingSeconds)}`;
+      const rows = [
+        ['Map', replay.source.mapName],
+        ['Replay SHA-256', `${replay.source.replaySha256.slice(0, 16)}…`],
+        ['Unit generations', replay.units.length],
+        ['Frames', (replay.coverage.counts.unitFrame ?? 0).toLocaleString()],
+        ['Active now', replay._activeCount ?? 0],
+        ['With checkpoint', replay._framedCount ?? 0],
+        ['Interpolation', 'None (hold-last)'],
+      ];
+      facts.replaceChildren(...rows.flatMap(([term, value]) => {
+        const dt = document.createElement('dt'), dd = document.createElement('dd');
+        dt.textContent = term; dd.textContent = String(value); return [dt, dd];
+      }));
+    }
+    function tick(timestamp) {
+      if (playing && replay) {
+        const elapsed = (timestamp - lastAnimation) / 1000 * Number(speedInput.value);
+        currentTime = Math.min(replay.timing.recordingSeconds, currentTime + elapsed);
+        timeInput.value = String(currentTime);
+        if (currentTime >= replay.timing.recordingSeconds) { playing = false; playButton.textContent = 'Play'; }
+        draw();
+      }
+      lastAnimation = timestamp; requestAnimationFrame(tick);
+    }
+    function loadDocument(document) {
+      if (document.schemaVersion !== 1 || document.contract !== 'researchReplayState') throw new Error('Unsupported replay-state contract');
+      replay = document;
+      replay._positionedEvents = replay.events.filter(event => event.position?.length === 3);
+      if (replay.map.overviewPngDataUrl) { replay._image = new Image(); replay._image.src = replay.map.overviewPngDataUrl; replay._image.onload = draw; }
+      bounds = replay.map.bounds ?? observedBounds(replay);
+      extentNote.textContent = replay.map.bounds ? 'Projection uses verified map playfield bounds.' : 'No verified map bounds in this export; projection uses the observed-data extent and is not map-exact.';
+      currentTime = 0; timeInput.max = String(replay.timing.recordingSeconds); timeInput.value = '0';
+      playButton.disabled = false; timeInput.disabled = false; empty.hidden = true; resize();
+    }
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files?.[0]; if (!file) return;
+      loadDocument(JSON.parse(await file.text()));
+    });
+    playButton.addEventListener('click', () => { playing = !playing; playButton.textContent = playing ? 'Pause' : 'Play'; });
+    timeInput.addEventListener('input', () => { currentTime = Number(timeInput.value); draw(); });
+    window.addEventListener('resize', resize);
+    const source = new URLSearchParams(location.search).get('src');
+    if (source) fetch(source).then(response => {
+      if (!response.ok) throw new Error(`Could not load ${source}: HTTP ${response.status}`);
+      return response.json();
+    }).then(loadDocument).catch(error => { empty.textContent = error.message; });
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
