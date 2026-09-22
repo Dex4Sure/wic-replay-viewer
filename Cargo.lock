@@ -4218,7 +4218,7 @@ dependencies = [
 
 [[package]]
 name = "wic-replay-viewer"
-version = "0.6.2"
+version = "0.6.3"
 dependencies = [
  "flate2",
  "rayon",
@@ -4231,7 +4231,7 @@ dependencies = [
 
 [[package]]
 name = "wic-replay-viewer-app"
-version = "0.6.2"
+version = "0.6.3"
 dependencies = [
  "directories",
  "gtk",

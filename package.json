@@ -1,7 +1,7 @@
 {
   "name": "wic-replay-viewer-ui",
   "private": true,
-  "version": "0.6.2",
+  "version": "0.6.3",
   "author": "Dex4Sure",
   "license": "MIT",
   "type": "module",

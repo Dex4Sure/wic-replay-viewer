@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.6.3 - 2026-09-22
+
+### Highlights
+
+- Rank each team's live replay scoreboard by the players' current scores.
+
+### Fixed
+
+- Sort players within each live replay scoreboard team by their current score,
+  highest first, while keeping scores that have not yet been recorded at the end.
+
 ## 0.6.2 - 2026-09-19
 
 ### Highlights

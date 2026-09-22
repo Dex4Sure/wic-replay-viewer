@@ -97,8 +97,15 @@ export function createScoreboard(
       groups.set(team, group);
     }
     for (const group of groups.values()) {
-      // Keep each player in place while their score changes during playback.
-      group.players.sort((a, b) => a.playerId - b.playerId);
+      group.players.sort((a, b) => {
+        if (a.score === null) {
+          return b.score === null ? a.playerId - b.playerId : 1;
+        }
+        if (b.score === null) {
+          return -1;
+        }
+        return b.score - a.score || a.playerId - b.playerId;
+      });
       group.total = group.players.every((player) => player.score !== null)
         ? group.players.reduce((sum, player) => sum + player.score!, 0)
         : null;

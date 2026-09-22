@@ -12,7 +12,7 @@ const player = (playerId: number, overrides: Partial<ScoreParticipant> = {}): Sc
 });
 
 describe('recorded live scores', () => {
-  it('seeks both ways, preserves penalties, keeps player order and sums only known player scores', () => {
+  it('seeks both ways, preserves penalties, ranks players by score and sums only known scores', () => {
     const board = createScoreboard(
       [player(0), player(1), player(2)],
       [0, 1, 2].map((playerId) => ({ playerId, timeSeconds: 1, team: playerId === 2 ? 3 : 1 })),
@@ -29,12 +29,12 @@ describe('recorded live scores', () => {
       label: 'USA',
       total: 30,
       players: [
-        { playerId: 0, score: 10 },
         { playerId: 1, score: 20 },
+        { playerId: 0, score: 10 },
       ],
     });
     expect(board(7).map((t) => t.total)).toEqual([18, 8]);
-    expect(board(7)[0]!.players.map((p) => p.playerId)).toEqual([0, 1]);
+    expect(board(7)[0]!.players.map((p) => p.playerId)).toEqual([1, 0]);
     expect(board(5)[0]!.total).toBe(30);
     expect(board(0)).toEqual([]);
   });
@@ -103,5 +103,16 @@ describe('recorded live scores', () => {
       [1, 4],
     ]);
     expect(createScoreboard([], [], [])(100)).toEqual([]);
+  });
+  it('places unknown scores after recorded scores', () => {
+    const board = createScoreboard(
+      [player(0), player(1)],
+      [0, 1].map((playerId) => ({ playerId, timeSeconds: 0, team: 1 })),
+      [{ playerId: 1, timeSeconds: 2, score: -3 }],
+    );
+    expect(board(2)[0]!.players.map((p) => [p.playerId, p.score])).toEqual([
+      [1, -3],
+      [0, null],
+    ]);
   });
 });

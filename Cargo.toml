@@ -1,6 +1,6 @@
 [package]
 name = "wic-replay-viewer"
-version = "0.6.2"
+version = "0.6.3"
 edition = "2024"
 description = "Native replay library backend for the WiC Replay Viewer"
 authors = ["Dex4Sure"]
