@@ -22,6 +22,36 @@ pub(crate) fn begin_file_operation(
     Ok(FileOperationGuard(Arc::clone(busy)))
 }
 
+/// Marks one library import as running. Dropping it, including while a panic
+/// unwinds the import thread, clears both the running and cancellation flags so
+/// a failed import can never leave the library permanently "importing".
+#[derive(Debug)]
+pub(crate) struct ImportRunGuard {
+    importing: Arc<AtomicBool>,
+    cancelled: Arc<AtomicBool>,
+}
+
+impl Drop for ImportRunGuard {
+    fn drop(&mut self) {
+        self.cancelled.store(false, Ordering::Release);
+        self.importing.store(false, Ordering::Release);
+    }
+}
+
+pub(crate) fn begin_import(
+    importing: &Arc<AtomicBool>,
+    cancelled: &Arc<AtomicBool>,
+) -> Result<ImportRunGuard, String> {
+    importing
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .map_err(|_| "A replay import is already running".to_owned())?;
+    cancelled.store(false, Ordering::Release);
+    Ok(ImportRunGuard {
+        importing: Arc::clone(importing),
+        cancelled: Arc::clone(cancelled),
+    })
+}
+
 pub(crate) struct DetailLoadCoordinator<T> {
     in_flight: Mutex<HashMap<PathBuf, Arc<PendingDetailLoad<T>>>>,
 }
@@ -166,6 +196,37 @@ mod tests {
             }
         });
         assert!(!busy.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn import_guard_excludes_and_clears_flags_on_finish_and_thread_panic() {
+        let importing = Arc::new(AtomicBool::new(false));
+        let cancelled = Arc::new(AtomicBool::new(true));
+        {
+            let _guard = begin_import(&importing, &cancelled).expect("first import");
+            assert!(importing.load(Ordering::Acquire));
+            assert!(
+                !cancelled.load(Ordering::Acquire),
+                "a new import is not cancelled"
+            );
+            assert_eq!(
+                begin_import(&importing, &cancelled).unwrap_err(),
+                "A replay import is already running"
+            );
+            cancelled.store(true, Ordering::Release);
+        }
+        assert!(!importing.load(Ordering::Acquire));
+        assert!(!cancelled.load(Ordering::Acquire));
+
+        // The guard is moved into the coordinator thread, as in `start_import`.
+        let guard = begin_import(&importing, &cancelled).expect("second import");
+        let coordinator = thread::spawn(move || {
+            let _guard = guard;
+            panic!("import coordinator panicked");
+        });
+        assert!(coordinator.join().is_err());
+        assert!(!importing.load(Ordering::Acquire));
+        assert!(begin_import(&importing, &cancelled).is_ok());
     }
 
     #[test]

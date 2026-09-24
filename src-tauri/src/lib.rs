@@ -6,8 +6,8 @@ use std::thread;
 
 mod command_core;
 use command_core::{
-    DetailLoadCoordinator, FileOperationGuard, begin_file_operation, canonical_directories,
-    paths_as_strings,
+    DetailLoadCoordinator, FileOperationGuard, begin_file_operation, begin_import,
+    canonical_directories, paths_as_strings,
 };
 
 use directories::ProjectDirs;
@@ -126,13 +126,13 @@ fn import_running(state: State<'_, AppState>) -> bool {
 }
 
 #[tauri::command]
-fn add_library_locations(
+async fn add_library_locations(
     roots: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
     use wic_replay_viewer::diagnostics::{self, Operation, Phase};
     diagnostics::activity(Operation::FileOperation, Phase::Started, 1);
-    let result = add_library_locations_impl(roots, state);
+    let result = add_library_locations_impl(roots, state).await;
     if result.is_err() {
         wic_replay_viewer::diagnostics::activity(
             Operation::FileOperation,
@@ -145,28 +145,36 @@ fn add_library_locations(
     result
 }
 
-fn add_library_locations_impl(
+// Folder validation and SQLite writes can block on slow drives or a busy
+// database, so library-location commands run on the blocking pool rather than
+// the main thread that owns the window.
+async fn add_library_locations_impl(
     roots: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
-    let roots = canonical_directories(roots)?;
-    if roots.is_empty() {
-        return Err("Choose at least one existing replay folder".to_owned());
-    }
-    let mut database = Database::open(&state.database_path)?;
-    database.add_library_locations(&roots)?;
-    database.library_locations().map(paths_as_strings)
+    let database_path = state.database_path.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let roots = canonical_directories(roots)?;
+        if roots.is_empty() {
+            return Err("Choose at least one existing replay folder".to_owned());
+        }
+        let mut database = Database::open(&database_path)?;
+        database.add_library_locations(&roots)?;
+        database.library_locations().map(paths_as_strings)
+    })
+    .await
+    .map_err(|error| format!("Library location task failed: {error}"))?
 }
 
 #[tauri::command]
-fn start_import(
+async fn start_import(
     roots: Vec<String>,
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
     use wic_replay_viewer::diagnostics::{self, Operation, Phase};
     diagnostics::activity(Operation::Import, Phase::Started, 1);
-    let result = start_import_impl(roots, app, state);
+    let result = start_import_impl(roots, app, state).await;
     if result.is_err() {
         wic_replay_viewer::diagnostics::activity(Operation::Import, Phase::ExpectedProblem, 1);
     }
@@ -174,10 +182,36 @@ fn start_import(
     result
 }
 
-fn start_import_impl(
+async fn start_import_impl(
     roots: Vec<String>,
     app: AppHandle,
     state: State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let database_path = state.database_path.clone();
+    let importing = Arc::clone(&state.importing);
+    let import_cancelled = Arc::clone(&state.import_cancelled);
+    let file_operation_busy = Arc::clone(&state.file_operation_busy);
+    tauri::async_runtime::spawn_blocking(move || {
+        start_import_blocking(
+            roots,
+            app,
+            database_path,
+            &importing,
+            &import_cancelled,
+            &file_operation_busy,
+        )
+    })
+    .await
+    .map_err(|error| format!("Replay import setup failed: {error}"))?
+}
+
+fn start_import_blocking(
+    roots: Vec<String>,
+    app: AppHandle,
+    database_path: PathBuf,
+    importing: &Arc<AtomicBool>,
+    import_cancelled: &Arc<AtomicBool>,
+    file_operation_busy: &Arc<AtomicBool>,
 ) -> Result<Vec<String>, String> {
     let roots = canonical_directories(roots)?;
     if roots.is_empty() {
@@ -185,36 +219,26 @@ fn start_import_impl(
     }
 
     let file_operation = begin_file_operation(
-        &state.file_operation_busy,
+        file_operation_busy,
         "Wait for the current replay-management operation before scanning",
     )?;
+    // Every early return below drops this guard and clears the running flag.
+    let import_run = begin_import(importing, import_cancelled)?;
 
-    state
-        .importing
-        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-        .map_err(|_| "A replay import is already running".to_owned())?;
-    state.import_cancelled.store(false, Ordering::Release);
-
-    let setup = (|| {
-        let mut database = Database::open(&state.database_path)?;
+    let locations = {
+        let mut database = Database::open(&database_path)?;
         database.add_library_locations(&roots)?;
-        database.library_locations().map(paths_as_strings)
-    })();
-    let locations = match setup {
-        Ok(locations) => locations,
-        Err(error) => {
-            state.importing.store(false, Ordering::Release);
-            return Err(error);
-        }
+        database.library_locations().map(paths_as_strings)?
     };
 
-    let database_path = state.database_path.clone();
-    let importing = Arc::clone(&state.importing);
-    let import_cancelled = Arc::clone(&state.import_cancelled);
+    let import_cancelled = Arc::clone(import_cancelled);
     let worker_limit = available_workers();
     thread::Builder::new()
         .name("wic-replay-import-coordinator".to_owned())
         .spawn(move || {
+            // Declared first so it drops last: the flags clear only after the
+            // final events are emitted, and also if this thread panics.
+            let _import_run = import_run;
             let _file_operation = file_operation;
             let result = run_import_roots_cancellable(
                 &roots,
@@ -261,13 +285,8 @@ fn start_import_impl(
                     },
                 );
             }
-            importing.store(false, Ordering::Release);
-            import_cancelled.store(false, Ordering::Release);
         })
-        .map_err(|error| {
-            state.importing.store(false, Ordering::Release);
-            format!("Cannot start replay import: {error}")
-        })?;
+        .map_err(|error| format!("Cannot start replay import: {error}"))?;
 
     Ok(locations)
 }
@@ -282,13 +301,13 @@ fn cancel_import(state: State<'_, AppState>) -> bool {
 }
 
 #[tauri::command]
-fn remove_library_location(
+async fn remove_library_location(
     path: String,
     state: State<'_, AppState>,
 ) -> Result<RemovedLocation, String> {
     use wic_replay_viewer::diagnostics::{self, Operation, Phase};
     diagnostics::activity(Operation::FileOperation, Phase::Started, 1);
-    let result = remove_library_location_impl(path, state);
+    let result = remove_library_location_impl(path, state).await;
     if result.is_err() {
         wic_replay_viewer::diagnostics::activity(
             Operation::FileOperation,
@@ -301,30 +320,31 @@ fn remove_library_location(
     result
 }
 
-fn remove_library_location_impl(
+async fn remove_library_location_impl(
     path: String,
     state: State<'_, AppState>,
 ) -> Result<RemovedLocation, String> {
     if state.importing.load(Ordering::Acquire) {
         return Err("Wait for the current import before removing a location".to_owned());
     }
-    let removed_root = PathBuf::from(path);
-    let database = Database::open(&state.database_path)?;
-    database.remove_library_location(&removed_root)?;
-    let remaining = database.library_locations()?;
-    let mut removed_replay_paths = Vec::new();
-    for summary in database.load_summaries()? {
-        if summary.path.starts_with(&removed_root)
-            && !remaining.iter().any(|root| summary.path.starts_with(root))
-        {
-            database.delete_summary(&summary.path)?;
-            removed_replay_paths.push(summary.path.to_string_lossy().into_owned());
-        }
-    }
-    Ok(RemovedLocation {
-        locations: paths_as_strings(remaining),
-        removed_replay_paths,
+    // Exclude concurrent renames and exports, which also rewrite cached rows.
+    let file_operation = begin_file_operation(
+        &state.file_operation_busy,
+        "Wait for the current replay-management operation before removing a location",
+    )?;
+    let database_path = state.database_path.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _file_operation = file_operation;
+        let removed_root = PathBuf::from(path);
+        let mut database = Database::open(&database_path)?;
+        let removed_replay_paths = database.remove_library_location(&removed_root)?;
+        Ok(RemovedLocation {
+            locations: paths_as_strings(database.library_locations()?),
+            removed_replay_paths: paths_as_strings(removed_replay_paths),
+        })
     })
+    .await
+    .map_err(|error| format!("Library location removal task failed: {error}"))?
 }
 
 #[tauri::command]
@@ -1016,10 +1036,13 @@ fn attach_probe(app: &AppHandle) {
             "exit" => std::process::exit(94),
             "import" => {
                 let state = app.state::<AppState>();
-                start_import(
+                start_import_blocking(
                     vec![root.expect("import requires a replay directory")],
                     app.clone(),
-                    state,
+                    state.database_path.clone(),
+                    &state.importing,
+                    &state.import_cancelled,
+                    &state.file_operation_busy,
                 )
                 .expect("probe import starts");
                 while app.state::<AppState>().importing.load(Ordering::Acquire) {

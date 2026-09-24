@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Fixed
+
+- Record a replay that crashes the parser as a failed replay instead of
+  aborting the whole library scan, so later rescans skip the unchanged file.
+  Renaming such a replay now reports an error and restores the file.
+- Keep the window responsive while adding, removing, or scanning library
+  folders by moving folder checks and database work off the interface thread.
+- Remove a library folder and its replays in one database transaction, and wait
+  for any running rename or export before removing it.
+- Always clear the running-import state when an import ends, even after an
+  unexpected failure, so replay management cannot stay blocked until restart.
+
 ## 0.6.3 - 2026-09-22
 
 ### Highlights

@@ -559,8 +559,17 @@ impl Database {
             .map_err(|error| database_error!("Cannot commit library location update: {error}"))
     }
 
-    pub fn remove_library_location(&self, path: &Path) -> Result<(), String> {
-        self.connection
+    /// Forget a library location and every cached replay that no remaining
+    /// location still covers, returning those replay paths in sorted order.
+    ///
+    /// Only paths are read, and the whole removal commits atomically, so a large
+    /// library is neither decoded in full nor left half-removed after an error.
+    pub fn remove_library_location(&mut self, path: &Path) -> Result<Vec<PathBuf>, String> {
+        let transaction = self
+            .connection
+            .transaction()
+            .map_err(|error| database_error!("Cannot start library location removal: {error}"))?;
+        transaction
             .execute(
                 "DELETE FROM library_locations WHERE path = ?1",
                 [path_text(path)],
@@ -568,7 +577,28 @@ impl Database {
             .map_err(|error| {
                 database_error!("Cannot remove library location {}: {error}", path.display())
             })?;
-        Ok(())
+        let remaining = query_paths(&transaction, "SELECT path FROM library_locations")?;
+        let mut removed = query_paths(&transaction, "SELECT path FROM replay_summaries")?
+            .into_iter()
+            .filter(|replay| {
+                replay.starts_with(path) && !remaining.iter().any(|root| replay.starts_with(root))
+            })
+            .collect::<Vec<_>>();
+        removed.sort();
+        for replay in &removed {
+            transaction
+                .execute(
+                    "DELETE FROM replay_summaries WHERE path = ?1",
+                    [path_text(replay)],
+                )
+                .map_err(|error| {
+                    database_error!("Cannot remove replay {}: {error}", replay.display())
+                })?;
+        }
+        transaction
+            .commit()
+            .map_err(|error| database_error!("Cannot commit library location removal: {error}"))?;
+        Ok(removed)
     }
 
     pub fn delete_summary(&self, path: &Path) -> Result<(), String> {
@@ -971,6 +1001,17 @@ fn path_text(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
+fn query_paths(connection: &Connection, sql: &str) -> Result<Vec<PathBuf>, String> {
+    let mut statement = connection
+        .prepare(sql)
+        .map_err(|error| database_error!("Cannot prepare path query: {error}"))?;
+    let rows = statement
+        .query_map([], |row| row.get::<_, String>(0).map(PathBuf::from))
+        .map_err(|error| database_error!("Cannot query paths: {error}"))?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|error| database_error!("Cannot decode paths: {error}"))
+}
+
 fn size_to_sql(size: u64) -> Result<i64, String> {
     i64::try_from(size).map_err(|_| format!("Replay file is too large for SQLite: {size} bytes"))
 }
@@ -1052,6 +1093,72 @@ mod tests {
         assert_eq!(added_at, 1);
         database.remove_library_location(&canonical).unwrap();
         assert_eq!(database.library_locations().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn removing_a_location_drops_only_replays_no_other_location_covers() {
+        let directory = tempdir().expect("temp dir");
+        let mut database =
+            Database::open(&directory.path().join("library.sqlite3")).expect("database");
+        let main = directory.path().join("main");
+        let nested = main.join("nested");
+        let sibling = directory.path().join("main-old");
+        database
+            .add_library_locations(&[main.clone(), nested.clone(), sibling.clone()])
+            .expect("locations");
+        let only_main = [main.join("b.wicdemo"), main.join("a.wicdemo")];
+        let covered = [nested.join("c.wicdemo"), sibling.join("d.wicdemo")];
+        for path in only_main.iter().chain(&covered) {
+            database
+                .upsert_summary(&summary(path.clone()))
+                .expect("summary");
+        }
+
+        let removed = database.remove_library_location(&main).expect("remove");
+
+        assert_eq!(removed, vec![only_main[1].clone(), only_main[0].clone()]);
+        assert_eq!(
+            database.library_locations().expect("locations"),
+            vec![sibling, nested]
+        );
+        let mut stored = database
+            .load_summaries()
+            .expect("summaries")
+            .into_iter()
+            .map(|row| row.path)
+            .collect::<Vec<_>>();
+        stored.sort();
+        assert_eq!(stored, covered.to_vec());
+    }
+
+    #[test]
+    fn failed_location_removal_leaves_the_location_and_replays_intact() {
+        let directory = tempdir().expect("temp dir");
+        let mut database =
+            Database::open(&directory.path().join("library.sqlite3")).expect("database");
+        let main = directory.path().join("main");
+        database
+            .add_library_locations(std::slice::from_ref(&main))
+            .expect("location");
+        let replays = [main.join("a.wicdemo"), main.join("b.wicdemo")];
+        for path in &replays {
+            database
+                .upsert_summary(&summary(path.clone()))
+                .expect("summary");
+        }
+        database
+            .connection
+            .execute_batch(&format!(
+                "CREATE TEMP TRIGGER reject_second BEFORE DELETE ON replay_summaries
+                 WHEN old.path = '{}' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END;",
+                path_text(&replays[1])
+            ))
+            .expect("failure trigger");
+
+        assert!(database.remove_library_location(&main).is_err());
+
+        assert_eq!(database.library_locations().expect("locations"), vec![main]);
+        assert_eq!(database.load_summaries().expect("summaries").len(), 2);
     }
 
     #[test]

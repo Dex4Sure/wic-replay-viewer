@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::fs;
+use std::panic;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -157,6 +158,29 @@ pub fn run_import_roots_cancellable<F>(
 where
     F: Fn(BackgroundEvent),
 {
+    run_import_roots_with(
+        roots,
+        worker_limit,
+        database_path,
+        cancelled,
+        emit,
+        parse_summary_unguarded,
+    )
+}
+
+/// Import pipeline with an injectable per-replay summarizer. Production passes
+/// the parser; tests substitute a summarizer that panics on a chosen replay.
+fn run_import_roots_with<F>(
+    roots: &[PathBuf],
+    worker_limit: usize,
+    database_path: &Path,
+    cancelled: Arc<AtomicBool>,
+    emit: F,
+    summarize: Summarizer,
+) -> Result<(), String>
+where
+    F: Fn(BackgroundEvent),
+{
     if roots.is_empty() {
         return Err("Add at least one replay folder first".to_owned());
     }
@@ -249,7 +273,7 @@ where
                         if worker_cancelled.load(Ordering::Acquire) {
                             return;
                         }
-                        let summary = parse_summary(path, fingerprint);
+                        let summary = summarize_isolated(summarize, path, fingerprint);
                         if !worker_cancelled.load(Ordering::Acquire) {
                             let _ = sender.send(summary);
                         }
@@ -377,16 +401,74 @@ pub fn load_detail(path: &Path, database_path: &Path) -> Result<DetailView, Stri
     Ok(detail)
 }
 
+type Summarizer = fn(PathBuf, FileFingerprint) -> ReplaySummary;
+
+const PARSER_PANIC_ERROR: &str = "Replay parser failed unexpectedly on this file";
+
 fn parse_summary(path: PathBuf, fingerprint: FileFingerprint) -> ReplaySummary {
-    let file_name = path
-        .file_name()
+    summarize_isolated(parse_summary_unguarded, path, fingerprint)
+}
+
+/// Contain a parser panic to the replay that caused it. The replay is recorded as
+/// a failed parse, so the rest of the scan continues and later rescans skip the
+/// unchanged file instead of failing the whole library again.
+fn summarize_isolated(
+    summarize: Summarizer,
+    path: PathBuf,
+    fingerprint: FileFingerprint,
+) -> ReplaySummary {
+    let fallback_path = path.clone();
+    panic::catch_unwind(panic::AssertUnwindSafe(|| summarize(path, fingerprint))).unwrap_or_else(
+        |_| failed_summary(fallback_path, fingerprint, PARSER_PANIC_ERROR.to_owned()),
+    )
+}
+
+fn summary_file_name(path: &Path) -> String {
+    path.file_name()
         .and_then(|name| name.to_str())
-        .map_or_else(|| path.display().to_string(), str::to_owned);
-    let imported_at = SystemTime::now()
+        .map_or_else(|| path.display().to_string(), str::to_owned)
+}
+
+fn summary_imported_at() -> i64 {
+    SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs()
-        .min(i64::MAX as u64) as i64;
+        .min(i64::MAX as u64) as i64
+}
+
+fn failed_summary(path: PathBuf, fingerprint: FileFingerprint, error: String) -> ReplaySummary {
+    ReplaySummary {
+        file_name: summary_file_name(&path),
+        path,
+        replay_name: None,
+        server_name: String::new(),
+        fingerprint,
+        cache_key: PARSER_CACHE_KEY.to_owned(),
+        map_name: String::new(),
+        map_display_name: String::new(),
+        game_mode: String::new(),
+        server_modes: String::new(),
+        format: String::new(),
+        date_time: String::new(),
+        duration_seconds: None,
+        recording_seconds: None,
+        winner: None,
+        player_count: 0,
+        player_names: String::new(),
+        search_players: Vec::new(),
+        factions: String::new(),
+        recorder: None,
+        recorder_faction: None,
+        incomplete: true,
+        parse_error: Some(error),
+        imported_at: summary_imported_at(),
+    }
+}
+
+fn parse_summary_unguarded(path: PathBuf, fingerprint: FileFingerprint) -> ReplaySummary {
+    let file_name = summary_file_name(&path);
+    let imported_at = summary_imported_at();
 
     match WicReplayParser::new(&path) {
         Ok(parser) => {
@@ -476,32 +558,7 @@ fn parse_summary(path: PathBuf, fingerprint: FileFingerprint) -> ReplaySummary {
                 imported_at,
             }
         }
-        Err(error) => ReplaySummary {
-            path,
-            file_name,
-            replay_name: None,
-            server_name: String::new(),
-            fingerprint,
-            cache_key: PARSER_CACHE_KEY.to_owned(),
-            map_name: String::new(),
-            map_display_name: String::new(),
-            game_mode: String::new(),
-            server_modes: String::new(),
-            format: String::new(),
-            date_time: String::new(),
-            duration_seconds: None,
-            recording_seconds: None,
-            winner: None,
-            player_count: 0,
-            player_names: String::new(),
-            search_players: Vec::new(),
-            factions: String::new(),
-            recorder: None,
-            recorder_faction: None,
-            incomplete: true,
-            parse_error: Some(error),
-            imported_at,
-        },
+        Err(error) => failed_summary(path, fingerprint, error),
     }
 }
 
@@ -869,6 +926,104 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[test]
+    fn parser_panic_is_recorded_for_its_replay_without_aborting_the_scan() {
+        fn panic_on_poison(path: PathBuf, fingerprint: FileFingerprint) -> ReplaySummary {
+            if path
+                .file_name()
+                .is_some_and(|name| name == "poison.wicdemo")
+            {
+                panic!("synthetic parser panic");
+            }
+            parse_summary_unguarded(path, fingerprint)
+        }
+
+        let directory = tempdir().expect("temp dir");
+        let root = directory.path().join("replays");
+        fs::create_dir(&root).expect("replay root");
+        for name in ["a.wicdemo", "poison.wicdemo", "z.wicdemo"] {
+            fs::write(root.join(name), b"invalid replay").expect("synthetic replay");
+        }
+        for index in 0..20 {
+            fs::write(root.join(format!("{index}.wicdemo")), b"invalid replay")
+                .expect("synthetic replay");
+        }
+        let database_path = directory.path().join("library.sqlite3");
+        let events = Mutex::new(Vec::new());
+
+        run_import_roots_with(
+            std::slice::from_ref(&root),
+            2,
+            &database_path,
+            Arc::new(AtomicBool::new(false)),
+            |event| events.lock().expect("event lock").push(event),
+            panic_on_poison,
+        )
+        .expect("a panicking replay must not fail the scan");
+
+        assert!(matches!(
+            events.lock().expect("events").last(),
+            Some(BackgroundEvent::ImportFinished {
+                failed: 23,
+                cancelled: false,
+                ..
+            })
+        ));
+        let stored = Database::open(&database_path)
+            .expect("database")
+            .load_summaries()
+            .expect("summaries");
+        assert_eq!(stored.len(), 23);
+        let poison = stored
+            .iter()
+            .find(|summary| summary.file_name == "poison.wicdemo")
+            .expect("panicking replay is recorded");
+        assert_eq!(poison.parse_error.as_deref(), Some(PARSER_PANIC_ERROR));
+        assert!(
+            stored
+                .iter()
+                .filter(|summary| summary.file_name != "poison.wicdemo")
+                .all(|summary| summary.parse_error.as_deref() != Some(PARSER_PANIC_ERROR))
+        );
+
+        // The unchanged file is cached as failed, so a rescan no longer reaches it.
+        let rescan = Mutex::new(Vec::new());
+        run_import_roots_with(
+            std::slice::from_ref(&root),
+            2,
+            &database_path,
+            Arc::new(AtomicBool::new(false)),
+            |event| rescan.lock().expect("event lock").push(event),
+            panic_on_poison,
+        )
+        .expect("rescan");
+        assert!(matches!(
+            rescan.lock().expect("events").last(),
+            Some(BackgroundEvent::ImportFinished {
+                imported: 0,
+                failed: 0,
+                skipped: 23,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn refreshing_a_panicking_replay_reports_an_error() {
+        fn always_panic(_: PathBuf, _: FileFingerprint) -> ReplaySummary {
+            panic!("synthetic parser panic");
+        }
+        let fingerprint = FileFingerprint {
+            size: 1,
+            modified_ns: 2,
+        };
+        let summary = summarize_isolated(always_panic, PathBuf::from("x.wicdemo"), fingerprint);
+        assert_eq!(summary.parse_error.as_deref(), Some(PARSER_PANIC_ERROR));
+        assert_eq!(summary.file_name, "x.wicdemo");
+        assert_eq!(summary.fingerprint, fingerprint);
+        assert_eq!(summary.cache_key, PARSER_CACHE_KEY);
     }
 
     #[test]
