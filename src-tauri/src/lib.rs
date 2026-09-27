@@ -6,8 +6,8 @@ use std::thread;
 
 mod command_core;
 use command_core::{
-    DetailLoadCoordinator, FileOperationGuard, begin_file_operation, begin_import,
-    canonical_directories, paths_as_strings,
+    DetailLoadCoordinator, FileOperationGuard, ImportRunGuard, begin_file_operation,
+    begin_import_operation, canonical_directories, paths_as_strings,
 };
 
 use directories::ProjectDirs;
@@ -187,19 +187,15 @@ async fn start_import_impl(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
+    let guards = begin_import_operation(
+        &state.importing,
+        &state.import_cancelled,
+        &state.file_operation_busy,
+    )?;
     let database_path = state.database_path.clone();
-    let importing = Arc::clone(&state.importing);
     let import_cancelled = Arc::clone(&state.import_cancelled);
-    let file_operation_busy = Arc::clone(&state.file_operation_busy);
     tauri::async_runtime::spawn_blocking(move || {
-        start_import_blocking(
-            roots,
-            app,
-            database_path,
-            &importing,
-            &import_cancelled,
-            &file_operation_busy,
-        )
+        start_import_blocking(roots, app, database_path, &import_cancelled, guards)
     })
     .await
     .map_err(|error| format!("Replay import setup failed: {error}"))?
@@ -209,21 +205,16 @@ fn start_import_blocking(
     roots: Vec<String>,
     app: AppHandle,
     database_path: PathBuf,
-    importing: &Arc<AtomicBool>,
     import_cancelled: &Arc<AtomicBool>,
-    file_operation_busy: &Arc<AtomicBool>,
+    guards: (ImportRunGuard, FileOperationGuard),
 ) -> Result<Vec<String>, String> {
+    // Keep the reservation through validation, setup, and the coordinator run.
+    // Early errors and panics release both guards.
+    let (import_run, file_operation) = guards;
     let roots = canonical_directories(roots)?;
     if roots.is_empty() {
         return Err("Add at least one existing replay folder first".to_owned());
     }
-
-    let file_operation = begin_file_operation(
-        file_operation_busy,
-        "Wait for the current replay-management operation before scanning",
-    )?;
-    // Every early return below drops this guard and clears the running flag.
-    let import_run = begin_import(importing, import_cancelled)?;
 
     let locations = {
         let mut database = Database::open(&database_path)?;
@@ -1040,9 +1031,13 @@ fn attach_probe(app: &AppHandle) {
                     vec![root.expect("import requires a replay directory")],
                     app.clone(),
                     state.database_path.clone(),
-                    &state.importing,
                     &state.import_cancelled,
-                    &state.file_operation_busy,
+                    begin_import_operation(
+                        &state.importing,
+                        &state.import_cancelled,
+                        &state.file_operation_busy,
+                    )
+                    .expect("probe reserves import"),
                 )
                 .expect("probe import starts");
                 while app.state::<AppState>().importing.load(Ordering::Acquire) {

@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- Keep scans marked as running during folder validation on slow drives, so
+  recovery cannot report them finished early and cancellation remains effective.
 - Record a replay that crashes the parser as a failed replay instead of
   aborting the whole library scan, so later rescans skip the unchanged file.
   Renaming such a replay now reports an error and restores the file.

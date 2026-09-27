@@ -52,6 +52,20 @@ pub(crate) fn begin_import(
     })
 }
 
+/// Reserve the import before dispatching any blocking folder validation.
+pub(crate) fn begin_import_operation(
+    importing: &Arc<AtomicBool>,
+    cancelled: &Arc<AtomicBool>,
+    busy: &Arc<AtomicBool>,
+) -> Result<(ImportRunGuard, FileOperationGuard), String> {
+    let file_operation = begin_file_operation(
+        busy,
+        "Wait for the current replay-management operation before scanning",
+    )?;
+    let import_run = begin_import(importing, cancelled)?;
+    Ok((import_run, file_operation))
+}
+
 pub(crate) struct DetailLoadCoordinator<T> {
     in_flight: Mutex<HashMap<PathBuf, Arc<PendingDetailLoad<T>>>>,
 }
@@ -196,6 +210,74 @@ mod tests {
             }
         });
         assert!(!busy.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn import_reservation_covers_delayed_validation_and_preserves_cancellation() {
+        use wic_replay_viewer::importer::{BackgroundEvent, run_import_roots_cancellable};
+
+        let directory = tempdir().expect("temp dir");
+        let root = directory.path().to_path_buf();
+        let database_path = root.join("library.sqlite3");
+        let importing = Arc::new(AtomicBool::new(false));
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let busy = Arc::new(AtomicBool::new(false));
+        let guards = begin_import_operation(&importing, &cancelled, &busy).unwrap();
+        // Hold validation until the calling thread has observed and cancelled
+        // the queued import, without timing assumptions or a real slow drive.
+        let (resume, delayed) = std::sync::mpsc::channel();
+        let worker_cancelled = Arc::clone(&cancelled);
+        let worker = thread::spawn(move || {
+            let (_import_run, _file_operation) = guards;
+            delayed.recv().unwrap();
+            let roots = canonical_directories(vec![root.to_string_lossy().into_owned()]).unwrap();
+            run_import_roots_cancellable(&roots, 1, &database_path, worker_cancelled, |event| {
+                assert!(matches!(
+                    event,
+                    BackgroundEvent::ImportFinished {
+                        imported: 0,
+                        cancelled: true,
+                        ..
+                    }
+                ))
+            })
+            .unwrap();
+            assert!(
+                !database_path.exists(),
+                "cancelled setup must not parse or store replays"
+            );
+        });
+        assert!(importing.load(Ordering::Acquire));
+        assert!(begin_import_operation(&importing, &cancelled, &busy).is_err());
+        assert!(begin_file_operation(&busy, "busy").is_err());
+        cancelled.store(true, Ordering::Release);
+        resume.send(()).unwrap();
+        worker.join().unwrap();
+        assert!(!importing.load(Ordering::Acquire));
+        assert!(!cancelled.load(Ordering::Acquire));
+        assert!(!busy.load(Ordering::Acquire));
+    }
+
+    #[test]
+    fn invalid_import_setup_releases_reservation() {
+        let importing = Arc::new(AtomicBool::new(false));
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let busy = Arc::new(AtomicBool::new(false));
+        let directory = tempdir().unwrap();
+        let invalid = directory
+            .path()
+            .join("missing")
+            .to_string_lossy()
+            .into_owned();
+        let result = (|| {
+            let (_import_run, _file_operation) =
+                begin_import_operation(&importing, &cancelled, &busy)?;
+            canonical_directories(vec![invalid])
+        })();
+        assert!(result.is_err());
+        assert!(!importing.load(Ordering::Acquire));
+        assert!(!busy.load(Ordering::Acquire));
+        assert!(begin_import_operation(&importing, &cancelled, &busy).is_ok());
     }
 
     #[test]
